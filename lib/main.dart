@@ -9,6 +9,7 @@ import 'screens/mydoctor.dart';
 import 'screens/testHistory.dart';
 import 'screens/myDevicesPage.dart';
 
+// git remote add origin https://github.com/pratik-cemd/privyScintigloV1.git
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(

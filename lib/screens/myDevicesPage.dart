@@ -1004,8 +1004,12 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
 
           print("✅ Updated Test Count: $updatedCount");
 
-          final finalResult = "$value,$level,$updatedCount";
+          // final finalResult = "Result :- $value "",$level,$updatedCount";
+          final resultText = formatResult(value);
+
+          final finalResult = "Result :- $resultText \nRemaining Test :- $updatedCount";
           // optional DB save
+
           bool saved = await _updateResultDB(value, level, updatedCount);
 
           if (saved) {
@@ -1027,6 +1031,19 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
           });
           return;
         }
+      }
+      else if (rawResult.contains("Invalid Format")) {
+
+          _showPopup("Error", "Try Again");
+
+          await _disconnectClean();
+          // 🔥 RESET EVERYTHING
+          setState(() {
+            testState = TestState.idle;
+            deviceResult[selectedDeviceId] = null;
+          });
+          return;
+
       }
 
       String displayResult = rawResult;
@@ -1069,7 +1086,7 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
         barrierDismissible: false,
         builder: (_) =>
             AlertDialog(
-              title: const Text("Test Result all"),
+              title: const Text("Test Result"),
               content: Text(displayResult),
               actions: [
                 TextButton(
@@ -1577,5 +1594,17 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
         );
       },
     );
+  }
+
+  String formatResult(String value) {
+    value = value.trim();
+
+    // If it's "Absent" (or any non-numeric word), return as is
+    if (value.toLowerCase() == "absent") {
+      return value;
+    }
+
+    // Otherwise, assume it's a range or numeric condition → add unit
+    return "$value mg/dL";
   }
 }

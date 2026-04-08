@@ -218,7 +218,7 @@ class _SignupScreenState extends State<SignupScreen> {
       "address": address.text,
       "password": password.text,
       "imageBase64": imageBase64,
-      "gender": gender,
+      "gender": gender.isNotEmpty ? gender[0].toUpperCase() : "X",
       "type": userType,
       // "disease":disease,
       "verified":false,
