@@ -2212,8 +2212,10 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2>
     bool bt = await _ensureBluetoothOn();
     if (!bt) return;
 
-    bool loc = await _ensureLocationOn();
-    if (!loc) return;
+    if(Platform.isAndroid) {
+      bool loc = await _ensureLocationOn();
+      if (!loc) return;
+    }
 
     bool permission = await _checkPermissions();
     if (!permission) return;
