@@ -2104,6 +2104,13 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2>
         _showPopup("Bluetooth Off", "Please turn ON Bluetooth");
         return false;
       }
+
+      // ✅ iOS → skip location पूरी तरह
+      if (Platform.isIOS) {
+        return true;
+      }
+
+      // 🔽 Android only
       // 📍 Check Location permission
       final locationPermission = await Permission.location.status;
 
@@ -2287,7 +2294,8 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2>
     }
   }
   Future<bool> _ensureLocationOn() async {
-    if (!Platform.isAndroid) return true;
+    // if (!Platform.isAndroid) return true;
+    if (Platform.isIOS) return true;
 
     bool enabled = await Permission.location.serviceStatus.isEnabled;
     if (enabled) return true;
