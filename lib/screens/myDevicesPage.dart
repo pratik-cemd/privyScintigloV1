@@ -2182,63 +2182,108 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2>
   //   }
   // }
 
+  // Future<void> _initSetup() async {
+  //   while (true) {
+  //     bool bt = await _ensureBluetoothOn();
+  //     if (!bt) {
+  //       if(Platform.isAndroid) Navigator.pop(context); // 👈 back
+  //       return;
+  //     }
+  //
+  //     bool loc = await _ensureLocationOn();
+  //     if (!loc) {
+  //       if(Platform.isAndroid)
+  //         Navigator.pop(context);
+  //       return;
+  //     }
+  //
+  //     bool permission = await _checkPermissions();
+  //     if (!permission)  {
+  //       if(Platform.isAndroid) Navigator.pop(context);
+  //       return;
+  //     }
+  //     // ✅ All OK
+  //     print("Start process");
+  //     break;
+  //   }
+  // }
+
   Future<void> _initSetup() async {
-    while (true) {
-      bool bt = await _ensureBluetoothOn();
-      if (!bt) {
-        Navigator.pop(context); // 👈 back
-        return;
-      }
+    bool bt = await _ensureBluetoothOn();
+    if (!bt) return;
 
-      bool loc = await _ensureLocationOn();
-      if (!loc) if (!loc) {
-        Navigator.pop(context);
-        return;
-      }
+    bool loc = await _ensureLocationOn();
+    if (!loc) return;
 
-      bool permission = await _checkPermissions();
-      if (!permission)  {
-        Navigator.pop(context);
-        return;
-      }
-      // ✅ All OK
-      print("Start process");
-      break;
-    }
+    bool permission = await _checkPermissions();
+    if (!permission) return;
+
+    print("Start process");
   }
-
+  // Future<bool> _ensureBluetoothOn() async {
+  //   var state = await FlutterBluePlus.adapterState.first;
+  //
+  //   if (state == BluetoothAdapterState.on) return true;
+  //
+  //   bool userWants = await _askUser(
+  //     "Bluetooth Required",
+  //     "Please turn ON Bluetooth to continue",
+  //   );
+  //
+  //   if (!userWants) return false;
+  //
+  //   if (Platform.isAndroid) {
+  //     await FlutterBluePlus.turnOn();
+  //
+  //     // wait until ON
+  //     await FlutterBluePlus.adapterState
+  //         .firstWhere((s) => s == BluetoothAdapterState.on);
+  //
+  //     return true;
+  //   } else {
+  //     // iOS case 🚫
+  //     await AppSettings.openAppSettings();
+  //
+  //     // wait until user comes back and turns ON
+  //     await FlutterBluePlus.adapterState
+  //         .firstWhere((s) => s == BluetoothAdapterState.on);
+  //
+  //     return true;
+  //   }
+  // }
   Future<bool> _ensureBluetoothOn() async {
-    var state = await FlutterBluePlus.adapterState.first;
+    try {
+      final state = await FlutterBluePlus.adapterState
+          .firstWhere((s) =>
+      s == BluetoothAdapterState.on ||
+          s == BluetoothAdapterState.off)
+          .timeout(const Duration(seconds: 3), onTimeout: () {
+        return BluetoothAdapterState.on; // assume ON (iOS safe fallback)
+      });
 
-    if (state == BluetoothAdapterState.on) return true;
+      if (state == BluetoothAdapterState.on) return true;
 
-    bool userWants = await _askUser(
-      "Bluetooth Required",
-      "Please turn ON Bluetooth to continue",
-    );
+      bool userWants = await _askUser(
+        "Bluetooth Required",
+        "Please turn ON Bluetooth to continue",
+      );
 
-    if (!userWants) return false;
+      if (!userWants) return false;
 
-    if (Platform.isAndroid) {
-      await FlutterBluePlus.turnOn();
-
-      // wait until ON
-      await FlutterBluePlus.adapterState
-          .firstWhere((s) => s == BluetoothAdapterState.on);
-
-      return true;
-    } else {
-      // iOS case 🚫
-      await AppSettings.openAppSettings();
-
-      // wait until user comes back and turns ON
-      await FlutterBluePlus.adapterState
-          .firstWhere((s) => s == BluetoothAdapterState.on);
-
-      return true;
+      if (Platform.isAndroid) {
+        await FlutterBluePlus.turnOn();
+        await FlutterBluePlus.adapterState
+            .firstWhere((s) => s == BluetoothAdapterState.on);
+        return true;
+      } else {
+        await AppSettings.openAppSettings();
+        return true; // iOS pe assume karo user ON karega
+      }
+    } catch (e) {
+      print("Bluetooth check error: $e");
+      return true; // 🔥 important fallback for iOS
     }
   }
-
   Future<bool> _ensureLocationOn() async {
     if (!Platform.isAndroid) return true;
 
