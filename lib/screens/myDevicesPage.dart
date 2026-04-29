@@ -8,7 +8,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:app_settings/app_settings.dart';
 import 'testHistory.dart';
 import 'user_model.dart';
 
@@ -1531,11 +1530,11 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2>
     String date =
         "${now.day.toString().padLeft(2, '0')}-"
         "${now.month.toString().padLeft(2, '0')}-"
-        "${now.year.toString().substring(2)}_";
+        "${now.year.toString().substring(2)}_"
 
     // Format time → HH:mm:ss
     // String time =
-    "${now.hour.toString().padLeft(2, '0')}:"
+        "${now.hour.toString().padLeft(2, '0')}:"
         "${now.minute.toString().padLeft(2, '0')}:"
         "${now.second.toString().padLeft(2, '0')}";
     await dbRef.child("Devices/${widget.user.mobile}/$deviceID").set({

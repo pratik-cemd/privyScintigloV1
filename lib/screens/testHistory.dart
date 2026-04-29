@@ -2647,6 +2647,361 @@ class _TesthistoryPageState extends State<TesthistoryPage> {
   //   );
   //
   // }
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Scaffold(
+  //     extendBodyBehindAppBar: true,
+  //     appBar: AppBar(
+  //       backgroundColor: Colors.transparent,
+  //       elevation: 0,
+  //       centerTitle: true,
+  //
+  //             // 👇 Add this
+  //             leading: IconButton(
+  //               icon: const Icon(Icons.menu, color: Colors.white),
+  //               onPressed: () async {
+  //                 final selected = await showMenu<String>(
+  //                   context: context,
+  //                   position: const RelativeRect.fromLTRB(0, 80, 0, 0),
+  //                   items: [
+  //                     const PopupMenuItem(
+  //                       value: "home",
+  //                       child: Row(
+  //                         children: [
+  //                           Icon(Icons.home, color: Colors.black),
+  //                           SizedBox(width: 8),
+  //                           Text("Home", style: TextStyle(color: Colors.black)),
+  //                         ],
+  //                       ),
+  //                     ),
+  //                     const PopupMenuItem(
+  //                       value: "profile",
+  //                       child: Row(
+  //                         children: [
+  //                           Icon(Icons.person, color: Colors.black),
+  //                           SizedBox(width: 8),
+  //                           Text("My Profile",
+  //                               style: TextStyle(color: Colors.black)),
+  //                         ],
+  //                       ),
+  //                     ),
+  //                     const PopupMenuItem(
+  //                       value: "device",
+  //                       child: Row(
+  //                         children: [
+  //                           Icon(Icons.devices, color: Colors.black),
+  //                           SizedBox(width: 8),
+  //                           Text("My Device",
+  //                               style: TextStyle(color: Colors.black)),
+  //                         ],
+  //                       ),
+  //                     ),
+  //                     const PopupMenuItem(
+  //                       value: "doctor",
+  //                       child: Row(
+  //                         children: [
+  //                           Icon(Icons.people, color: Colors.black),
+  //                           SizedBox(width: 8),
+  //                           Text("My Doctor",
+  //                               style: TextStyle(color: Colors.black)),
+  //                         ],
+  //                       ),
+  //                     ),
+  //                   ],
+  //                 );
+  //
+  //                 // // if (selected == null) return;
+  //                 // if (selected != null) {
+  //                 //   _handleNavigation(selected);
+  //                 // }
+  //
+  //                 if (selected == "home") {
+  //                   Navigator.pushNamed(context, "/home");
+  //                 }
+  //                 // else if (selected == "history") {
+  //                 //   // Navigator.pushNamed(context, "/testHistory");
+  //                 //   Navigator.push(
+  //                 //     context,
+  //                 //     MaterialPageRoute(
+  //                 //       builder: (_) => TesthistoryPage(
+  //                 //         userMobile: widget.userMobile,
+  //                 //         name: widget.name,
+  //                 //         age: widget.age,
+  //                 //         gender: widget.gender,
+  //                 //         address: widget.address,
+  //                 //         disease: widget.disease,
+  //                 //       ),
+  //                 //     ),
+  //                 //   );
+  //                 // }
+  //                 else if (selected == "device") {
+  //                   // Navigator.pushNamed(context, "/myDevice");
+  //                   Navigator.push(
+  //                     context,
+  //                     MaterialPageRoute(
+  //                       builder: (_) => MyDevicesPage2(
+  //                         user: widget.user,
+  //                       ),
+  //                     ),
+  //                   );
+  //                 }
+  //                 else if (selected == "profile") {
+  //                   Navigator.push(
+  //                     context,
+  //                     MaterialPageRoute(
+  //                       builder: (_) => MyProfileScreen(
+  //                         user: widget.user,
+  //                       ),
+  //                     ),
+  //                   );
+  //                 }
+  //
+  //
+  //                 else if (selected == "doctor") {
+  //                   Navigator.push(
+  //                     context,
+  //                     MaterialPageRoute(
+  //                       builder: (_) => MyDoctorPage(
+  //                         user: widget.user,
+  //                       ),
+  //                     ),
+  //                   );
+  //                 }
+  //
+  //                 //     else if (selected == "doctor") {
+  //                 //       Navigator.pushNamed(context, "/myDoctor");
+  //                 //       // Navigator.push(
+  //                 //       //   context,
+  //                 //       //   MaterialPageRoute(
+  //                 //       //     builder: (_) => MyDoctorPage(
+  //                 //       //       mobile: widget.userMobile,
+  //                 //       //       name: widget.name,
+  //                 //       //       age: widget.age,
+  //                 //       //       email: widget.email,
+  //                 //       //       address: widget.address,
+  //                 //       //       gender: widget.gender,
+  //                 //       //       imageBase64: widget.imageBase64,
+  //                 //       //       disease: widget.disease,
+  //                 //       //       type: widget.type,
+  //                 //       //       specialization: widget.specialization,
+  //                 //       //       clinicName: clinicName,
+  //                 //       //
+  //                 //       //       // allDoctorsType: null,   // only used for admin
+  //                 //       //       // 👇 This is the part you wanted
+  //                 //       //       allDoctorsType: type.toLowerCase() == "admin" ? "aallDoct" : null,
+  //                 //       //     ),
+  //                 //       //   ),
+  //                 //       // );
+  //                 //     }
+  //               },
+  //             ),
+  //       title: const Text(
+  //         "Test History",
+  //         style: TextStyle(color: Colors.white),
+  //       ),
+  //       actions: [
+  //         IconButton(
+  //           icon: const Icon(Icons.more_vert, color: Colors.white),
+  //           onPressed: _showPopupMenu,
+  //         ),
+  //       ],
+  //     ),
+  //
+  //     body: Stack(
+  //       children: [
+  //
+  //         /// 🔹 Background + Main Content
+  //         Container(
+  //           decoration: const BoxDecoration(
+  //             image: DecorationImage(
+  //               image: AssetImage("assets/images/main.png"),
+  //               fit: BoxFit.cover,
+  //             ),
+  //           ),
+  //           child: Padding(
+  //             padding: const EdgeInsets.only(top: 90),
+  //             child: StreamBuilder<DatabaseEvent>(
+  //               stream: dbRef.child("Result/$targetMobile").onValue,
+  //               builder: (context, snapshot) {
+  //
+  //                 if (!snapshot.hasData ||
+  //                     snapshot.data?.snapshot.value == null) {
+  //                   return const Center(
+  //                     child: Text(
+  //                       "No Result Found",
+  //                       style: TextStyle(color: Colors.white),
+  //                     ),
+  //                   );
+  //                 }
+  //
+  //                 final data = Map<dynamic, dynamic>.from(
+  //                     snapshot.data!.snapshot.value as Map);
+  //
+  //                 List<String> filteredKeys = [];
+  //
+  //                 for (var key in data.keys) {
+  //                   try {
+  //                     final parts = key.toString().split("_");
+  //                     final date =
+  //                     DateFormat("dd-MM-yyyy").parse(parts[0]);
+  //
+  //                     bool include = false;
+  //
+  //                     /// Single Date
+  //                     if (_selectedDate != null) {
+  //                       include =
+  //                           date.year == _selectedDate!.year &&
+  //                               date.month == _selectedDate!.month &&
+  //                               date.day == _selectedDate!.day;
+  //                     }
+  //
+  //                     /// Date Range
+  //                     else if (_selectedRange != null) {
+  //                       include = date.isAfter(
+  //                           _selectedRange!.start
+  //                               .subtract(const Duration(days: 1))) &&
+  //                           date.isBefore(
+  //                               _selectedRange!.end
+  //                                   .add(const Duration(days: 1)));
+  //                     }
+  //
+  //                     /// Month Filter
+  //                     else if (_selectedMonth != null) {
+  //                       include =
+  //                           date.year == _selectedMonth!.year &&
+  //                               date.month == _selectedMonth!.month;
+  //                     }
+  //
+  //                     /// No Filter
+  //                     else {
+  //                       include = true;
+  //                     }
+  //
+  //                     if (include) {
+  //                       filteredKeys.add(key);
+  //                     }
+  //                   } catch (_) {}
+  //                 }
+  //
+  //                 /// Sort latest first
+  //                 filteredKeys.sort(
+  //                         (a, b) => b.toString().compareTo(a.toString()));
+  //
+  //                 if (filteredKeys.isEmpty) {
+  //                   return const Center(
+  //                     child: Text(
+  //                       "No Result Found for \n Selected Filter",
+  //                       style: TextStyle(color: Colors.white),
+  //                     ),
+  //                   );
+  //                 }
+  //
+  //                 return ListView.builder(
+  //                   padding: const EdgeInsets.all(12),
+  //                   itemCount: filteredKeys.length,
+  //                   itemBuilder: (context, index) {
+  //
+  //                     final key = filteredKeys[index];
+  //                     final testData =
+  //                     Map<dynamic, dynamic>.from(data[key]);
+  //
+  //                     final rawResult = testData["result"] ?? "N/A";
+  //
+  //                     String displayResult =
+  //                     rawResult.toString().toLowerCase() != "absent"
+  //                         ? "${rawResult.toString()} mg/100ml"
+  //                         : "Absent";
+  //
+  //                     return Card(
+  //                       margin:
+  //                       const EdgeInsets.only(bottom: 12),
+  //                       shape: RoundedRectangleBorder(
+  //                         borderRadius:
+  //                         BorderRadius.circular(12),
+  //                       ),
+  //                       child: Padding(
+  //                         padding:
+  //                         const EdgeInsets.all(14),
+  //                         child: Row(
+  //                           mainAxisAlignment:
+  //                           MainAxisAlignment.spaceBetween,
+  //                           children: [
+  //
+  //                             /// Left side
+  //                             const Column(
+  //                               crossAxisAlignment:
+  //                               CrossAxisAlignment.start,
+  //                               children: [
+  //                                 Text(
+  //                                   "Proteins Contain Level",
+  //                                   style: TextStyle(
+  //                                       fontSize: 16,
+  //                                       fontWeight:
+  //                                       FontWeight.w500),
+  //                                 ),
+  //                                 SizedBox(height: 6),
+  //                                 Text(
+  //                                   "Test Execution Date & Time",
+  //                                   style: TextStyle(
+  //                                       fontSize: 14,
+  //                                       color: Colors.grey),
+  //                                 ),
+  //                               ],
+  //                             ),
+  //
+  //                             /// Right side
+  //                             Column(
+  //                               crossAxisAlignment:
+  //                               CrossAxisAlignment.end,
+  //                               children: [
+  //                                 Text(
+  //                                   displayResult,
+  //                                   style: const TextStyle(
+  //                                     fontSize: 16,
+  //                                     fontWeight:
+  //                                     FontWeight.bold,
+  //                                     color: Colors.blue,
+  //                                   ),
+  //                                 ),
+  //                                 const SizedBox(height: 6),
+  //                                 Text(key),
+  //                               ],
+  //                             ),
+  //                           ],
+  //                         ),
+  //                       ),
+  //                     );
+  //                   },
+  //                 );
+  //               },
+  //             ),
+  //           ),
+  //         ),
+  //
+  //         /// 🔹 Loading Overlay
+  //         if (_isLoading)
+  //           Container(
+  //             color: Colors.black.withOpacity(0.5),
+  //             child: const Center(
+  //               child: Column(
+  //                 mainAxisSize: MainAxisSize.min,
+  //                 children: [
+  //                   CircularProgressIndicator(
+  //                       color: Colors.white),
+  //                   SizedBox(height: 12),
+  //                   Text(
+  //                     "Loading ....",
+  //                     style:
+  //                     TextStyle(color: Colors.white),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ),
+  //       ],
+  //     ),
+  //   );
+  // }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2656,149 +3011,91 @@ class _TesthistoryPageState extends State<TesthistoryPage> {
         elevation: 0,
         centerTitle: true,
 
-              // 👇 Add this
-              leading: IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () async {
-                  final selected = await showMenu<String>(
-                    context: context,
-                    position: const RelativeRect.fromLTRB(0, 80, 0, 0),
-                    items: [
-                      const PopupMenuItem(
-                        value: "home",
-                        child: Row(
-                          children: [
-                            Icon(Icons.home, color: Colors.black),
-                            SizedBox(width: 8),
-                            Text("Home", style: TextStyle(color: Colors.black)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: "profile",
-                        child: Row(
-                          children: [
-                            Icon(Icons.person, color: Colors.black),
-                            SizedBox(width: 8),
-                            Text("My Profile",
-                                style: TextStyle(color: Colors.black)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: "device",
-                        child: Row(
-                          children: [
-                            Icon(Icons.devices, color: Colors.black),
-                            SizedBox(width: 8),
-                            Text("My Device",
-                                style: TextStyle(color: Colors.black)),
-                          ],
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: "doctor",
-                        child: Row(
-                          children: [
-                            Icon(Icons.people, color: Colors.black),
-                            SizedBox(width: 8),
-                            Text("My Doctor",
-                                style: TextStyle(color: Colors.black)),
-                          ],
-                        ),
-                      ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: Colors.white),
+          onPressed: () async {
+            final selected = await showMenu<String>(
+              context: context,
+              position: const RelativeRect.fromLTRB(0, 80, 0, 0),
+              items: const [
+                PopupMenuItem(
+                  value: "home",
+                  child: Row(
+                    children: [
+                      Icon(Icons.home, color: Colors.black),
+                      SizedBox(width: 8),
+                      Text("Home", style: TextStyle(color: Colors.black)),
                     ],
-                  );
+                  ),
+                ),
+                PopupMenuItem(
+                  value: "profile",
+                  child: Row(
+                    children: [
+                      Icon(Icons.person, color: Colors.black),
+                      SizedBox(width: 8),
+                      Text("My Profile",
+                          style: TextStyle(color: Colors.black)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: "device",
+                  child: Row(
+                    children: [
+                      Icon(Icons.devices, color: Colors.black),
+                      SizedBox(width: 8),
+                      Text("My Device",
+                          style: TextStyle(color: Colors.black)),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: "doctor",
+                  child: Row(
+                    children: [
+                      Icon(Icons.people, color: Colors.black),
+                      SizedBox(width: 8),
+                      Text("My Doctor",
+                          style: TextStyle(color: Colors.black)),
+                    ],
+                  ),
+                ),
+              ],
+            );
 
-                  // // if (selected == null) return;
-                  // if (selected != null) {
-                  //   _handleNavigation(selected);
-                  // }
+            if (selected == "home") {
+              Navigator.pushNamed(context, "/home");
+            } else if (selected == "device") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyDevicesPage2(user: widget.user),
+                ),
+              );
+            } else if (selected == "profile") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyProfileScreen(user: widget.user),
+                ),
+              );
+            } else if (selected == "doctor") {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MyDoctorPage(user: widget.user),
+                ),
+              );
+            }
+          },
+        ),
 
-                  if (selected == "home") {
-                    Navigator.pushNamed(context, "/home");
-                  }
-                  // else if (selected == "history") {
-                  //   // Navigator.pushNamed(context, "/testHistory");
-                  //   Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //       builder: (_) => TesthistoryPage(
-                  //         userMobile: widget.userMobile,
-                  //         name: widget.name,
-                  //         age: widget.age,
-                  //         gender: widget.gender,
-                  //         address: widget.address,
-                  //         disease: widget.disease,
-                  //       ),
-                  //     ),
-                  //   );
-                  // }
-                  else if (selected == "device") {
-                    // Navigator.pushNamed(context, "/myDevice");
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => MyDevicesPage2(
-                          user: widget.user,
-                        ),
-                      ),
-                    );
-                  }
-                  else if (selected == "profile") {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => MyProfileScreen(
-                          user: widget.user,
-                        ),
-                      ),
-                    );
-                  }
-
-
-                  else if (selected == "doctor") {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => MyDoctorPage(
-                          user: widget.user,
-                        ),
-                      ),
-                    );
-                  }
-
-                  //     else if (selected == "doctor") {
-                  //       Navigator.pushNamed(context, "/myDoctor");
-                  //       // Navigator.push(
-                  //       //   context,
-                  //       //   MaterialPageRoute(
-                  //       //     builder: (_) => MyDoctorPage(
-                  //       //       mobile: widget.userMobile,
-                  //       //       name: widget.name,
-                  //       //       age: widget.age,
-                  //       //       email: widget.email,
-                  //       //       address: widget.address,
-                  //       //       gender: widget.gender,
-                  //       //       imageBase64: widget.imageBase64,
-                  //       //       disease: widget.disease,
-                  //       //       type: widget.type,
-                  //       //       specialization: widget.specialization,
-                  //       //       clinicName: clinicName,
-                  //       //
-                  //       //       // allDoctorsType: null,   // only used for admin
-                  //       //       // 👇 This is the part you wanted
-                  //       //       allDoctorsType: type.toLowerCase() == "admin" ? "aallDoct" : null,
-                  //       //     ),
-                  //       //   ),
-                  //       // );
-                  //     }
-                },
-              ),
         title: const Text(
           "Test History",
           style: TextStyle(color: Colors.white),
         ),
+
         actions: [
           IconButton(
             icon: const Icon(Icons.more_vert, color: Colors.white),
@@ -2810,7 +3107,7 @@ class _TesthistoryPageState extends State<TesthistoryPage> {
       body: Stack(
         children: [
 
-          /// 🔹 Background + Main Content
+          /// 🔹 Background + Content
           Container(
             decoration: const BoxDecoration(
               image: DecorationImage(
@@ -2847,33 +3144,21 @@ class _TesthistoryPageState extends State<TesthistoryPage> {
 
                       bool include = false;
 
-                      /// Single Date
                       if (_selectedDate != null) {
                         include =
                             date.year == _selectedDate!.year &&
                                 date.month == _selectedDate!.month &&
                                 date.day == _selectedDate!.day;
-                      }
-
-                      /// Date Range
-                      else if (_selectedRange != null) {
+                      } else if (_selectedRange != null) {
                         include = date.isAfter(
-                            _selectedRange!.start
-                                .subtract(const Duration(days: 1))) &&
+                            _selectedRange!.start.subtract(const Duration(days: 1))) &&
                             date.isBefore(
-                                _selectedRange!.end
-                                    .add(const Duration(days: 1)));
-                      }
-
-                      /// Month Filter
-                      else if (_selectedMonth != null) {
+                                _selectedRange!.end.add(const Duration(days: 1)));
+                      } else if (_selectedMonth != null) {
                         include =
                             date.year == _selectedMonth!.year &&
                                 date.month == _selectedMonth!.month;
-                      }
-
-                      /// No Filter
-                      else {
+                      } else {
                         include = true;
                       }
 
@@ -2890,7 +3175,7 @@ class _TesthistoryPageState extends State<TesthistoryPage> {
                   if (filteredKeys.isEmpty) {
                     return const Center(
                       child: Text(
-                        "No Result Found for \n Selected Filter",
+                        "No Result Found for Selected Filter",
                         style: TextStyle(color: Colors.white),
                       ),
                     );
@@ -2912,63 +3197,143 @@ class _TesthistoryPageState extends State<TesthistoryPage> {
                           ? "${rawResult.toString()} mg/100ml"
                           : "Absent";
 
+                      /// Format date safely
+                      final parts = key.split("_");
+                      String formattedDateTime;
+
+                      if (parts.length >= 2) {
+                        formattedDateTime = "${parts[0]}  ${parts[1]}";
+                      } else {
+                        formattedDateTime = key;
+                      }
+
                       return Card(
-                        margin:
-                        const EdgeInsets.only(bottom: 12),
+                        margin: const EdgeInsets.only(bottom: 12),
                         shape: RoundedRectangleBorder(
-                          borderRadius:
-                          BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12),
                         ),
                         child: Padding(
-                          padding:
-                          const EdgeInsets.all(14),
+                          padding: const EdgeInsets.all(14),
                           child: Row(
-                            mainAxisAlignment:
-                            MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
 
-                              /// Left side
-                              const Column(
-                                crossAxisAlignment:
-                                CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    "Proteins Contain Level",
-                                    style: TextStyle(
+                              /// LEFT SIDE (full visible, wrap allowed)
+                              Expanded(
+                                flex: 3,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: const [
+                                    Text(
+                                      "Proteins Contain Level",
+                                      style: TextStyle(
                                         fontSize: 16,
-                                        fontWeight:
-                                        FontWeight.w500),
-                                  ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    "Test Execution Date & Time",
-                                    style: TextStyle(
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    SizedBox(height: 6),
+                                    Text(
+                                      "Test Execution Date & Time",
+                                      style: TextStyle(
                                         fontSize: 14,
-                                        color: Colors.grey),
-                                  ),
-                                ],
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
 
-                              /// Right side
-                              Column(
-                                crossAxisAlignment:
-                                CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    displayResult,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight:
-                                      FontWeight.bold,
-                                      color: Colors.blue,
+                              const SizedBox(width: 10),
+
+                              /// RIGHT SIDE (adjustable)
+                              Flexible(
+                                flex: 2,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      displayResult,
+                                      softWrap: true,
+                                      textAlign: TextAlign.end,
+                                      style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 6),
-                                  Text(key),
-                                ],
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      formattedDateTime,
+                                      softWrap: true,
+                                      textAlign: TextAlign.end,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
+                          // child: Row(
+                          //   children: [
+                          //
+                          //     /// LEFT SIDE
+                          //     const Expanded(
+                          //       flex: 3,
+                          //       child: Column(
+                          //         crossAxisAlignment:
+                          //         CrossAxisAlignment.start,
+                          //         children: [
+                          //           Text(
+                          //             "Proteins Contain Level",
+                          //             style: TextStyle(
+                          //               fontSize: 16,
+                          //               fontWeight: FontWeight.w500,
+                          //             ),
+                          //           ),
+                          //           SizedBox(height: 6),
+                          //           Text(
+                          //             "Test Execution Date & Time",
+                          //             style: TextStyle(
+                          //               fontSize: 14,
+                          //               color: Colors.grey,
+                          //             ),
+                          //           ),
+                          //         ],
+                          //       ),
+                          //     ),
+                          //
+                          //     /// RIGHT SIDE
+                          //     Expanded(
+                          //       flex: 1,
+                          //       child: Column(
+                          //         crossAxisAlignment:
+                          //         CrossAxisAlignment.end,
+                          //         children: [
+                          //           Text(
+                          //             displayResult,
+                          //             maxLines: 1,
+                          //             overflow: TextOverflow.ellipsis,
+                          //             style: const TextStyle(
+                          //               fontSize: 16,
+                          //               fontWeight: FontWeight.bold,
+                          //               color: Colors.blue,
+                          //             ),
+                          //           ),
+                          //           const SizedBox(height: 6),
+                          //           Text(
+                          //             formattedDate,
+                          //             maxLines: 1,
+                          //             overflow: TextOverflow.ellipsis,
+                          //             style:
+                          //             const TextStyle(fontSize: 12),
+                          //           ),
+                          //         ],
+                          //       ),
+                          //     ),
+                          //   ],
+                          // ),
+
+
                         ),
                       );
                     },
@@ -2986,13 +3351,11 @@ class _TesthistoryPageState extends State<TesthistoryPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircularProgressIndicator(
-                        color: Colors.white),
+                    CircularProgressIndicator(color: Colors.white),
                     SizedBox(height: 12),
                     Text(
                       "Loading ....",
-                      style:
-                      TextStyle(color: Colors.white),
+                      style: TextStyle(color: Colors.white),
                     ),
                   ],
                 ),
@@ -3002,4 +3365,5 @@ class _TesthistoryPageState extends State<TesthistoryPage> {
       ),
     );
   }
+
 }
