@@ -2,10 +2,13 @@ import 'dart:async';
 import 'dart:io' ;
 import 'dart:typed_data';
 
+import 'package:app_settings/app_settings.dart';
+import 'package:android_intent_plus/android_intent.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:app_settings/app_settings.dart';
 import 'testHistory.dart';
 import 'user_model.dart';
 
@@ -14,6 +17,7 @@ import 'myprofile.dart';
 import 'test_count_screen.dart';
 import 'package:intl/intl.dart';
 
+import 'package:flutter_tts/flutter_tts.dart';//voice
 
 enum TestState {
   idle,
@@ -37,7 +41,8 @@ class MyDevicesPage2 extends StatefulWidget {
   State<MyDevicesPage2> createState() => _MyDevicesPageState2();
 }
 
-class _MyDevicesPageState2 extends State<MyDevicesPage2> {
+class _MyDevicesPageState2 extends State<MyDevicesPage2>
+    with WidgetsBindingObserver{
   final dbRef = FirebaseDatabase.instance.ref();
 
   BluetoothDevice? _device;
@@ -51,6 +56,10 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
 
   String selectedDeviceId = "";
   String _rxBuffer = "";
+
+  FlutterTts tts = FlutterTts();  //voice
+  bool isMuted = false; //voice
+  String selectedLang = "en-IN"; // default voice
 
   // Make sure you have these maps in your state:
   Map<String, String?> deviceResult = {}; // shows processing/result text
@@ -77,15 +86,36 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
   final Guid rxUuid = Guid("0000FF01-0000-1000-8000-00805F9B34FB");
   final Guid txUuid = Guid("0000FF02-0000-1000-8000-00805F9B34FB");
 
+  Map<String, double> deviceBattery = {}; //Device battery
 
   @override
   void initState() {
     super.initState();
+    _initSetup();
+
+    FlutterBluePlus.adapterState.listen((state) {
+      if (state == BluetoothAdapterState.on) {
+        _initSetup(); // auto resume
+      }
+    });
+    WidgetsBinding.instance.addObserver(this);
+    _warmupBluetooth(); // 🔥 ADD THIS
     _initPermissions();
     _startupValidation();
     // _loadPendingUpdates();
     _listenToDevices();
     // syncPendingResults();
+    tts.setLanguage("en-IN"); //voice
+    tts.setSpeechRate(0.45); //voice
+    tts.setPitch(1.0); //voice
+  }
+
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _onAppResume(); // 🔁 user wapas aaya → retry
+    }
   }
 
   /* -------------------- STARTUP VALIDATION -------------------- */
@@ -248,6 +278,23 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
                     ],
                   ),
                 ),
+
+                PopupMenuItem(
+                  value: "Sound",
+                  child: Row(
+                    children: [
+                      Icon(
+                        isMuted ? Icons.volume_off : Icons.volume_up,
+                        color: Colors.black,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        isMuted ? "Sound OFF" : "Sound ON",
+                        style: const TextStyle(color: Colors.black),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             );
 
@@ -296,6 +343,18 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
                       ),
                 ),
               );
+            }
+
+            else if (selected == "Sound") {
+              setState(() {
+                isMuted = !isMuted;
+              });
+
+              if (!isMuted) {
+                await speak("Sound enabled");
+              } else {
+                await speak("Sound disabled");
+              }
             }
           },
         ),
@@ -411,203 +470,276 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
                       //
                       //   }
                       // },
-                        onTap: () async {
-                          if (!active) {
-                            _showPopup("Status", "Please contact CEMD");
+                      onTap: () async {
+                        if (!active) {
+                          _showPopup("Status", "Please contact CEMD");
+                          return;
+                        }
+
+                        if (testCount <= 0) {
+                          _showPopup("Status", "Please Recharge");
+                          return;
+                        }
+                        // ⚠️ If test count < 5 → show warning
+                        if (testCount < 6) {
+                          await speak("Warning Low balance. Only $testCount tests remaining or left.");
+                          bool? proceed = await _showConfirmDialogLOW(
+                            "Low Balance",
+                            testCount,
+                          );
+
+                          // if (proceed != true) return; // user cancelled
+                          if (proceed != true) {
+                            await speak("Test cancelled");
                             return;
                           }
 
-                          if (testCount <= 0) {
-                            _showPopup("Status", "Please Recharge");
-                            return;
+                          await speak("Starting test");
+                        }
+
+
+                        if (testState != TestState.idle) return;
+                        bool ready = await _checkBluetoothAndLocation();
+                        if (!ready) return;
+                        
+                        await speak("Do you want to perform the protein test?");
+
+                        bool? startTest = await _showConfirmDialog(
+                          "Protein Test",
+                          "Do you want to perform the protein test?",
+                        );
+
+                        if (startTest != true) return;
+                        else
+                          {
+                            tts.stop();
+                            testState = TestState.idle;
+                            deviceResult[selectedDeviceId] = null;
+                            deviceStage[selectedDeviceId]=0;
                           }
 
+                        final now = DateTime.now();
 
-                          switch(testState) {
-                            case TestState.idle:
-                              bool? startTest = await _showConfirmDialog(
-                                "Protein Test",
-                                "Do you want to perform the protein test?",
-                              );
+                        String date =
+                            "${now.day.toString().padLeft(2, '0')}"
+                            "${now.month.toString().padLeft(2, '0')}"
+                            "${now.year.toString().substring(2)}";
 
-                              if (startTest != true) return;
+                        String time =
+                            "${now.hour.toString().padLeft(2, '0')}"
+                            "${now.minute.toString().padLeft(2, '0')}"
+                            "${now.second.toString().padLeft(2, '0')}";
 
-                              final now = DateTime.now();
-                              // Format date → ddMMyy
-                              String date =
-                                  "${now.day.toString().padLeft(2, '0')}"
-                                  "${now.month.toString().padLeft(2, '0')}"
-                                  "${now.year.toString().substring(2)}";
+                        String dis = widget.user.disease.isEmpty
+                            ? (widget.user.type == "doctor" ? "doct" : "admi")
+                            : widget.user.disease;
 
-                              // Format time → HH:mm:ss
-                              String time =
-                                  "${now.hour.toString().padLeft(2, '0')}"
-                                  "${now.minute.toString().padLeft(2, '0')}"
-                                  "${now.second.toString().padLeft(2, '0')}";
+                        String patientData =
+                            "#SET:PATIENT:${widget.user.mobile},${widget.user.gender},${widget.user.age},$dis,$date,$time";
 
+                        setState(() {
+                          deviceResult[key] = "Connecting Device...";
+                          deviceStage[key] = 1;
+                          testState = TestState.waitingPatientSave;
+                        });
 
-                          // if (!widget.user.disease) {
-                          // widget.user.disease = widget.user.type === "doctor"
-                          // ? "doctor"
-                          //     : widget.user.type === "admin"
-                          // ? "admin"
-                          //     : "";
-                          // }
-                              String dis = widget.user.disease;
-                              if (widget.user != null &&
-                                  (widget.user.disease == null || widget.user.disease.isEmpty)) {
-
-                                if (widget.user.type == "doctor") {
-                                  dis = "doct";
-                                } else if (widget.user.type == "admin") {
-                                  dis = "admi";
-                                }
-
-                              }
-                              // 🟢 Send patient details to ESP32
-                              // String patientData =
-                              //     "#patient_${widget.user.mobile},${widget.user
-                              //     .gender},${dis},$date,$time,${widget.user.age}";
-                              String patientData =
-                                  "#patient_${widget.user.mobile},${widget.user
-                                  .gender},${widget.user.age},${dis},$date,$time";
-
-                              setState(() {
-                                deviceResult[key] = "Processing start...";
-                                deviceStage[key] = 1; // 🔥 SHOW LOADER
-                                testState = TestState.waitingPatientSave;
-                              });
-                              await _connectSendAndRead(mac, key, patientData);
-                              // return; // ⛔ wait for ESP32 response
-                              break;
-
-                            // case TestState.testStarted:
-                            // // 👉 User taps after beep → get result
-                            //   setState(() {
-                            //     deviceResult[key] = "Starting test...";
-                            //     testState = TestState.waitingResult;
-                            //   });
-                            //
-                            //   await _connectSendAndRead(mac, key, "#startProtineTest");
-                            //   break;
-                            //
-                            // case TestState.result:
-                            // // 👉 User taps after beep → get result
-                            //   setState(() {
-                            //     deviceResult[key] = "Getting result...";
-                            //     testState = TestState.waitingResult;
-                            //   });
-                            //
-                            //   await _connectSendAndRead(mac, key, "a2");
-                            //   break;
-
-                            case TestState.testStarted:
-                            // 👉 SECOND TAP → GET RESULT
-                              setState(() {
-                                deviceResult[key] = "Getting result...";
-                                deviceStage[key] = 1; // 🔥 loader again
-                                testState = TestState.waitingResult;
-                              });
-
-                              await _connectSendAndRead(mac, key, "a2");
-                              break;
-
-                            default:
-                            // Ignore taps in other states
-                              break;
-
-
-                          }
-
-
-                          // // 🟢 FIRST TIME → Start flow
-                          // if (!isPatientSaved) {
-                          //   bool? startTest = await _showConfirmDialog(
-                          //     "Protein Test",
-                          //     "Do you want to perform the protein test?",
-                          //   );
-                          //
-                          //   if (startTest != true) return;
-
-
-
-                          // // 🟢 FIRST POPUP → Confirm test start
-                          // bool? startTest = await _showConfirmDialog(
-                          //   "Protein Test",
-                          //   "Do you want to perform the protein test?",
-                          // );
-                          //
-                          // if (startTest != true) return;
-
-                          // if (isInstructionConfirmed == true) {
-                          //   setState(() {
-                          //     deviceResult[key] = "Starting test...";
-                          //   });
-                          //
-                          //   await _connectSendAndRead(mac, key, "#startProtineTest");
-                          // }
-
-
-                          // 🟢 SECOND TAP → Get result after beep
-                          // if (isTestStarted && isInstructionConfirmed) {
-                          //   setState(() {
-                          //     deviceResult[key] = "Getting result...";
-                          //   });
-                          //
-                          //   await _connectSendAndRead(mac, key, "a2");
-                          // }
-
-
-
-                          // 🟢 SECOND POPUP → Test instructions
-                          // bool? confirmSteps = await _showConfirmDialog(
-                          //   "Instructions",
-                          //   "Before test:\n\n"
-                          //       "• Take cuvette\n"
-                          //       "• Add 3ml fresh urine sample\n"
-                          //       "• Add 5 drops reagent\n"
-                          //       "• Mix 3 times (up-down)\n"
-                          //       "• Close cap properly\n"
-                          //       "• Clean cuvette\n\n"
-                          //       "Have you followed all steps?",
-                          // );
-
-                          // if (confirmSteps != true) return;
-
-                          // // 🟢 Stage 1 → Start Test
-                          // setState(() {
-                          //   deviceStage[key] = 1;
-                          //   deviceResult[key] = "Processing…";
-                          // });
-                          //
-                          // await _connectSendAndRead(mac, key, "#startProtineTest");
-                          //
-                          // await Future.delayed(const Duration(seconds: 3));
-                          //
-                          // setState(() {
-                          //   deviceStage[key] = 2;
-                          //   deviceResult[key] = "Ready for result";
-                          // });
-
-                          // // 🟢 Stage 2 → Get Result
-                          // setState(() {
-                          //   deviceResult[key] = "Processing…";
-                          // });
-                          //
-                          // await _connectSendAndRead(mac, key, "a2");
-
-                          // setState(() {
-                          //   deviceResult[key] = _rxBuffer.trim();
-                          // });
-
-                          await Future.delayed(const Duration(seconds: 2));
-
-                          setState(() {
-                            deviceStage[key] = 0;
-                            deviceStage[selectedDeviceId] = 0; // 🔥 CLEAR UI
-                            deviceResult[key] = null;
-                          });
-                        },
+                        await _connectSendAndRead(mac, key, patientData);
+                      },
+                      //   onTap: () async {
+                      //     if (!active) {
+                      //       _showPopup("Status", "Please contact CEMD");
+                      //       return;
+                      //     }
+                      //
+                      //     if (testCount <= 0) {
+                      //       _showPopup("Status", "Please Recharge");
+                      //       return;
+                      //     }
+                      //
+                      //
+                      //     switch(testState) {
+                      //       case TestState.idle:
+                      //         await speak("Do you want to perform the protein test?");
+                      //         bool? startTest = await _showConfirmDialog(
+                      //           "Protein Test",
+                      //           "Do you want to perform the protein test?",
+                      //         );
+                      //
+                      //         if (startTest != true) return;
+                      //
+                      //         final now = DateTime.now();
+                      //         // Format date → ddMMyy
+                      //         String date =
+                      //             "${now.day.toString().padLeft(2, '0')}"
+                      //             "${now.month.toString().padLeft(2, '0')}"
+                      //             "${now.year.toString().substring(2)}";
+                      //
+                      //         // Format time → HH:mm:ss
+                      //         String time =
+                      //             "${now.hour.toString().padLeft(2, '0')}"
+                      //             "${now.minute.toString().padLeft(2, '0')}"
+                      //             "${now.second.toString().padLeft(2, '0')}";
+                      //
+                      //
+                      //     // if (!widget.user.disease) {
+                      //     // widget.user.disease = widget.user.type === "doctor"
+                      //     // ? "doctor"
+                      //     //     : widget.user.type === "admin"
+                      //     // ? "admin"
+                      //     //     : "";
+                      //     // }
+                      //         String dis = widget.user.disease;
+                      //         if (widget.user != null &&
+                      //             (widget.user.disease == null || widget.user.disease.isEmpty)) {
+                      //
+                      //           if (widget.user.type == "doctor") {
+                      //             dis = "doct";
+                      //           } else if (widget.user.type == "admin") {
+                      //             dis = "admi";
+                      //           }
+                      //
+                      //         }
+                      //         // 🟢 Send patient details to ESP32
+                      //         String patientData =
+                      //             "#SET:PATIENT:${widget.user.mobile},${widget.user
+                      //             .gender},${widget.user.age},$dis,$date,$time";
+                      //
+                      //         setState(() {
+                      //           deviceResult[key] = "Processing start...";
+                      //           deviceStage[key] = 1; // 🔥 SHOW LOADER
+                      //           testState = TestState.waitingPatientSave;
+                      //         });
+                      //         await _connectSendAndRead(mac, key, patientData);
+                      //         // return; // ⛔ wait for ESP32 response
+                      //         break;
+                      //
+                      //       // case TestState.testStarted:
+                      //       // // 👉 User taps after beep → get result
+                      //       //   setState(() {
+                      //       //     deviceResult[key] = "Starting test...";
+                      //       //     testState = TestState.waitingResult;
+                      //       //   });
+                      //       //
+                      //       //   await _connectSendAndRead(mac, key, "#startProtineTest");
+                      //       //   break;
+                      //       //
+                      //       // case TestState.result:
+                      //       // // 👉 User taps after beep → get result
+                      //       //   setState(() {
+                      //       //     deviceResult[key] = "Getting result...";
+                      //       //     testState = TestState.waitingResult;
+                      //       //   });
+                      //       //
+                      //       //   await _connectSendAndRead(mac, key, "a2");
+                      //       //   break;
+                      //
+                      //       case TestState.testStarted:
+                      //       // 👉 SECOND TAP → GET RESULT
+                      //         setState(() {
+                      //           deviceResult[key] = "Getting result...";
+                      //           deviceStage[key] = 1; // 🔥 loader again
+                      //           testState = TestState.waitingResult;
+                      //         });
+                      //
+                      //         await _connectSendAndRead(mac, key, "a2");
+                      //         break;
+                      //
+                      //       default:
+                      //       // Ignore taps in other states
+                      //         break;
+                      //
+                      //
+                      //     }
+                      //
+                      //
+                      //     // // 🟢 FIRST TIME → Start flow
+                      //     // if (!isPatientSaved) {
+                      //     //   bool? startTest = await _showConfirmDialog(
+                      //     //     "Protein Test",
+                      //     //     "Do you want to perform the protein test?",
+                      //     //   );
+                      //     //
+                      //     //   if (startTest != true) return;
+                      //
+                      //
+                      //
+                      //     // // 🟢 FIRST POPUP → Confirm test start
+                      //     // bool? startTest = await _showConfirmDialog(
+                      //     //   "Protein Test",
+                      //     //   "Do you want to perform the protein test?",
+                      //     // );
+                      //     //
+                      //     // if (startTest != true) return;
+                      //
+                      //     // if (isInstructionConfirmed == true) {
+                      //     //   setState(() {
+                      //     //     deviceResult[key] = "Starting test...";
+                      //     //   });
+                      //     //
+                      //     //   await _connectSendAndRead(mac, key, "#startProtineTest");
+                      //     // }
+                      //
+                      //
+                      //     // 🟢 SECOND TAP → Get result after beep
+                      //     // if (isTestStarted && isInstructionConfirmed) {
+                      //     //   setState(() {
+                      //     //     deviceResult[key] = "Getting result...";
+                      //     //   });
+                      //     //
+                      //     //   await _connectSendAndRead(mac, key, "a2");
+                      //     // }
+                      //
+                      //
+                      //
+                      //     // 🟢 SECOND POPUP → Test instructions
+                      //     // bool? confirmSteps = await _showConfirmDialog(
+                      //     //   "Instructions",
+                      //     //   "Before test:\n\n"
+                      //     //       "• Take cuvette\n"
+                      //     //       "• Add 3ml fresh urine sample\n"
+                      //     //       "• Add 5 drops reagent\n"
+                      //     //       "• Mix 3 times (up-down)\n"
+                      //     //       "• Close cap properly\n"
+                      //     //       "• Clean cuvette\n\n"
+                      //     //       "Have you followed all steps?",
+                      //     // );
+                      //
+                      //     // if (confirmSteps != true) return;
+                      //
+                      //     // // 🟢 Stage 1 → Start Test
+                      //     // setState(() {
+                      //     //   deviceStage[key] = 1;
+                      //     //   deviceResult[key] = "Processing…";
+                      //     // });
+                      //     //
+                      //     // await _connectSendAndRead(mac, key, "#startProtineTest");
+                      //     //
+                      //     // await Future.delayed(const Duration(seconds: 3));
+                      //     //
+                      //     // setState(() {
+                      //     //   deviceStage[key] = 2;
+                      //     //   deviceResult[key] = "Ready for result";
+                      //     // });
+                      //
+                      //     // // 🟢 Stage 2 → Get Result
+                      //     // setState(() {
+                      //     //   deviceResult[key] = "Processing…";
+                      //     // });
+                      //     //
+                      //     // await _connectSendAndRead(mac, key, "a2");
+                      //
+                      //     // setState(() {
+                      //     //   deviceResult[key] = _rxBuffer.trim();
+                      //     // });
+                      //
+                      //     await Future.delayed(const Duration(seconds: 2));
+                      //
+                      //     setState(() {
+                      //       deviceStage[key] = 0;
+                      //       deviceStage[selectedDeviceId] = 0; // 🔥 CLEAR UI
+                      //       deviceResult[key] = null;
+                      //     });
+                      //   },
                       child: Card(
                         margin: const EdgeInsets.only(bottom: 12),
                         child: Padding(
@@ -616,7 +748,6 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               // Single left-side box
-                              
                               SizedBox(
                                 width: 40,
                                 height: 40,
@@ -649,7 +780,11 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
                                           ? "Active | Remaining: $testCount"
                                           : "Inactive",
                                       style: TextStyle(
-                                        color: active ? Colors.green : Colors.redAccent,
+                                        color: active
+                                        // Colors.green : Colors.redAccent,
+                                        ? getTestColor(testCount) // 🔥 dynamic color
+                                            : Colors.redAccent,
+                                        fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     if (deviceResult[key] != null)
@@ -657,12 +792,15 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
                                         padding: const EdgeInsets.only(top: 6),
                                         child: Text(
                                           deviceResult[key]!,
-                                          style: const TextStyle(color: Colors.orange),
+                                          style: const TextStyle(color: Colors.black),
                                         ),
                                       ),
                                   ],
                                 ),
                               ),
+                              // 👉 RIGHT SIDE ICON (Battery)
+                              const SizedBox(width: 10),
+                              _buildBatteryWidget(key),
                             ],
                           ),
                         ),
@@ -753,17 +891,84 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
     _busy = false;
   }
 
+  // Future<void> _connectToDevice(String mac, String deviceName) async {
+  //   if (_isConnecting) return;
+  //   _isConnecting = true;
+  //
+  //   try {
+  //     final state = await FlutterBluePlus.adapterState.first;
+  //     if (state != BluetoothAdapterState.on) {
+  //       _showPopup("Bluetooth Off", "Please turn on Bluetooth.");
+  //       return;
+  //     }
+  //
+  //     if (_device != null) {
+  //       try {
+  //         await _device!.disconnect();
+  //         await Future.delayed(const Duration(milliseconds: 500));
+  //       } catch (_) {}
+  //     }
+  //     if (Platform.isIOS) {
+  //       BluetoothDevice? foundDevice;
+  //
+  //       await FlutterBluePlus.startScan(timeout: const Duration(seconds: 7));
+  //
+  //       await for (final results in FlutterBluePlus.scanResults) {
+  //         for (final r in results) {
+  //           if (r.device.name == deviceName || r.device.advName == deviceName) {
+  //             foundDevice = r.device;
+  //             break;
+  //           }
+  //         }
+  //         if (foundDevice != null) break;
+  //       }
+  //
+  //       await FlutterBluePlus.stopScan();
+  //
+  //       if (foundDevice == null) {
+  //         throw Exception("Device not found");
+  //       }
+  //
+  //       _device = foundDevice;
+  //     } else {
+  //       _device = BluetoothDevice.fromId(mac);
+  //     }
+  //
+  //     await _device!.connect(
+  //       license: License.commercial,
+  //       timeout: const Duration(seconds: 12),
+  //       autoConnect: false,
+  //     );
+  //     await _discoverServices();
+  //   } catch (e) {
+  //     _showPopup("Connection Error", "Device not found or unreachable.");
+  //   } finally {
+  //     _isConnecting = false;
+  //   }
+  // }
+
+
   Future<void> _connectToDevice(String mac, String deviceName) async {
     if (_isConnecting) return;
     _isConnecting = true;
-
+    await FlutterBluePlus.stopScan();
     try {
-      final state = await FlutterBluePlus.adapterState.first;
+      // final state = await FlutterBluePlus.adapterState.first;
+      // if (state != BluetoothAdapterState.on) {
+      //   _showPopup("Bluetooth Off", "Please turn on Bluetooth.");
+      //   return;
+      // }
+
+      final state = await FlutterBluePlus.adapterState
+          .where((s) => s == BluetoothAdapterState.on)
+          .first
+          .timeout(const Duration(seconds: 5), onTimeout: () {
+        throw Exception("Bluetooth not ready");
+      });
       if (state != BluetoothAdapterState.on) {
         _showPopup("Bluetooth Off", "Please turn on Bluetooth.");
         return;
       }
-
       if (_device != null) {
         try {
           await _device!.disconnect();
@@ -772,20 +977,27 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
       }
       if (Platform.isIOS) {
         BluetoothDevice? foundDevice;
+        await FlutterBluePlus.startScan(timeout: const Duration(seconds: 5));
 
-        await FlutterBluePlus.startScan(timeout: const Duration(seconds: 7));
+        _scanSub?.cancel();
 
-        await for (final results in FlutterBluePlus.scanResults) {
+        _scanSub = FlutterBluePlus.scanResults.listen((results) {
           for (final r in results) {
-            if (r.device.name == deviceName || r.device.advName == deviceName) {
+            final name = r.device.platformName.isNotEmpty
+                ? r.device.platformName
+                : r.advertisementData.localName;
+
+            // if (name == deviceName) {
+            if (name.isNotEmpty && name.contains(deviceName)){
               foundDevice = r.device;
               break;
             }
           }
-          if (foundDevice != null) break;
-        }
+        });
 
+        await Future.delayed(const Duration(seconds: 5));
         await FlutterBluePlus.stopScan();
+        await _scanSub?.cancel();
 
         if (foundDevice == null) {
           throw Exception("Device not found");
@@ -795,12 +1007,24 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
       } else {
         _device = BluetoothDevice.fromId(mac);
       }
+      try {
+        await _device!.connect(
+          license: License.commercial,
+          timeout: const Duration(seconds: 12),
+          autoConnect: false,
+        );
+      } catch (e) {
+        print("Retry connect...");
+        await Future.delayed(const Duration(seconds: 1));
 
-      await _device!.connect(
-        license: License.commercial,
-        timeout: const Duration(seconds: 12),
-        autoConnect: false,
-      );
+        await _device!.connect(
+          license: License.commercial,
+          timeout: const Duration(seconds: 12),
+          autoConnect: false,
+        );
+      }
+      // 🔥 ADD THIS
+      await Future.delayed(const Duration(milliseconds: 200));
       await _discoverServices();
     } catch (e) {
       _showPopup("Connection Error", "Device not found or unreachable.");
@@ -830,91 +1054,6 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
     );
   }
 
-  // Future<void> _onDataReceived(List<int> data) async {
-  //   _rxBuffer += String.fromCharCodes(data);
-  //
-  //   if (!_rxBuffer.contains("\n")) return;
-  //
-  //   final raw = _rxBuffer.trim();
-  //   _rxBuffer = "";
-  //
-  //   // await _disconnect();
-  //
-  //   if (raw == "No Data Found") {
-  //     _showPopup("Result", raw);
-  //     return;
-  //   }
-  //
-  //   String result = raw;
-  //   String ref = "";
-  //
-  //    if (raw.contains("_")) {
-  //     final parts = raw.split("_");
-  //
-  //     if (parts.length >= 3) {
-  //       result = parts[0].trim();
-  //       String ref = parts[1].trim();
-  //       int count = int.tryParse(parts[2].trim()) ?? 0;
-  //
-  //       // await _updateResultDB(result, ref, count);
-  //
-  //       bool saved = await _updateResultDB(result, ref, count);
-  //
-  //       if (saved) {
-  //         // _showPopup("Success", "Result saved successfully.");
-  //         await _decreaseTestCount();
-  //       } else {
-  //         _showPopup("Error", "Failed to save result.");
-  //       }
-  //
-  //     }
-  //   }
-  //
-  //   _showPopup("Test Result", result);
-  // }
-
-  // Future<void> _onDataReceived(List<int> data) async {
-  //   _rxBuffer += String.fromCharCodes(data);
-  //
-  //   if (!_rxBuffer.contains("\n")) return;
-  //
-  //   final raw = _rxBuffer.trim();
-  //   _rxBuffer = "";
-  //
-  //   // 🚀 Process immediately (DO NOT wait for disconnect)
-  //   _handleResult(raw);
-  //
-  //   // Disconnect in background
-  //   Future.microtask(() async {
-  //     await _disconnect();
-  //   });
-  // }
-  // Future<void> _handleResult(String raw) async {
-  //   if (raw == "No Data Found") {
-  //     _showPopup("Result", raw);
-  //     return;
-  //   }
-  //
-  //   if (raw.contains("_")) {
-  //     final parts = raw.split("_");
-  //
-  //     if (parts.length >= 3) {
-  //       final result = parts[0].trim();
-  //       final ref = parts[1].trim();
-  //       final count = int.tryParse(parts[2].trim()) ?? 0;
-  //
-  //       bool saved = await _updateResultDB(result, ref, count);
-  //
-  //       if (saved) {
-  //         await _decreaseTestCount();
-  //       }
-  //
-  //       _showPopup("Test Result", result);
-  //     }
-  //   }
-  // }
-
-
   Future<void> _onDataReceived(List<int> data) async {
     final chunk = String.fromCharCodes(data);
     _rxBuffer += chunk;
@@ -934,36 +1073,192 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
         return; // 🚫 absolutely stop
       }
 
-      // ✅ Patient saved response
-      if (rawResult.toLowerCase().contains("patient save")) {
+      if (rawResult.contains("PATIENT_SAVED")) {
 
+        double? battery;
+        if (rawResult.contains(",")) {
+          battery = double.tryParse(rawResult.split(",")[1].trim());
+        }
+
+        if (battery != null) {
+          setState(() {
+            deviceBattery[selectedDeviceId] = battery!;
+          });
+        }
         if (!mounted) return;
 
-        bool? confirmSteps = await _showConfirmDialog(
-          "Instructions",
-          "Before test:\n\n"
-              "• Take cuvette\n"
-              "• Add 3ml urine\n"
-              "• Add 5 drops reagent\n"
-              "• Mix 3 times\n"
-              "• Close cap & clean\n\n"
-              "Have you followed all steps?",
+        await speak(
+            "Before starting the test, please follow all instructions carefully. "
+                "Make sure the device is charged, not connected to charging, "
+                "cuvette is clean, reagent is available, and sample is prepared properly. "
+                "Do you want to start the test now?"
         );
-
+        bool? confirmSteps = await _showConfirmDialog(
+            "⚠️Pre-Test Preparation"," please confirm:\n\n"
+            "•Make sure the device is fully charged and turned on.\n"
+            "•Do not perform the test while the device is charging.\n"
+            "•Ensure the cuvette is clean before starting the test.\n"
+            "•Confirm that enough reagent is available.\n"
+            "•Make sure the sample is properly collected and prepared.\n"
+            "•Place the device on a stable surface before starting the test.\n\n"
+            "Do you want to start the test now?"
+        );
         if (confirmSteps == true) {
+
           setState(() {
-            deviceResult[selectedDeviceId] = "Starting test...";
+            deviceResult[selectedDeviceId] = "Processing test...";
             deviceStage[selectedDeviceId] = 1; // still loading
             testState = TestState.waitingTestStart;
           });
-
-          await _connectSendAndRead(_device!.remoteId.str, selectedDeviceId, "#startProtineTest");
-        } else {
-          testState = TestState.idle;
+          tts.stop();
+          await _connectSendAndRead(_device!.remoteId.str, selectedDeviceId, "#START:PROTEIN");
         }
+        else {
+          tts.stop();
+
+          setState(() {
+            testState = TestState.idle;
+            deviceResult[selectedDeviceId] = null;
+            deviceStage[selectedDeviceId] = 0;
+          });
+        }
+        return;
+      }
+
+      // ✅ WAIT SAMPLE
+      if (rawResult.contains("#RESP:OK:WAIT_SAMPLE")) {
+        await speak("Waiting Protein Sample.");
+        setState(() {
+          deviceResult[selectedDeviceId] = "Waiting Sample..";
+          // deviceStage[selectedDeviceId]=2;
+        });
 
         return;
       }
+// ✅ TEST STARTED
+      if (rawResult.contains("#RESP:OK:TEST_STARTED")) {
+        tts.stop();
+        await speak("Test started");
+        setState(() {
+          deviceResult[selectedDeviceId] = "Starting test...";
+          deviceStage[selectedDeviceId] = 2;
+          testState = TestState.testStarted;
+        });
+
+        // ⏱ wait 3 sec then check status
+        await Future.delayed(const Duration(seconds: 3));
+        tts.stop();
+        await _connectSendAndRead(
+            _device!.remoteId.str,
+            selectedDeviceId,
+            "#GET:TEST_STATUS"
+        );
+
+        return;
+      }
+
+      // ✅ TEST DONE
+      if (rawResult.contains("#RESP:TST:DONE")) {
+        tts.stop();
+        await speak("Test completed result processing.");
+        setState(() {
+          deviceResult[selectedDeviceId] = "Result Processing...";
+          deviceStage[selectedDeviceId] = 1;
+          testState = TestState.waitingResult;
+        });
+
+        await _connectSendAndRead(
+            _device!.remoteId.str,
+            selectedDeviceId,
+            "#GET:finalResult"
+        );
+
+        return;
+      }
+
+      // ✅ FINAL RESULT
+      if (rawResult.contains("#RESP:OK:P:")) {
+
+        final cleaned = rawResult.replaceAll("#RESP:OK:P:", "");
+
+        // Example: 41.1(0.055591)
+        final valuePart = cleaned.split("(")[0];
+        final voltPart = cleaned.contains("(")
+            ? cleaned.split("(")[1].replaceAll(")", "")
+            : "";
+
+        int updatedCount = await _decreaseTestCount();
+
+        final resultText = formatResult(valuePart);
+
+        final finalResult =
+            "Result :- $resultText\nRemaining Test :- $updatedCount";
+
+        bool saved = await _updateResultDB(
+            valuePart,
+            voltPart,
+            updatedCount
+        );
+
+        if (saved && mounted) {
+          // _showPopup("Protein Test Result", finalResult);
+          // _showResultPopup(finalResult);
+          _showResultPopup(resultText, updatedCount);
+        }
+
+        await _disconnectClean();
+
+        setState(() {
+          testState = TestState.idle;
+          deviceResult[selectedDeviceId] = null;
+          deviceStage[selectedDeviceId]=0;
+        });
+
+        return;
+      }
+
+      // ❌ ERROR
+      if (rawResult.contains("Invalid")) {
+        _showPopup("Error", "Try Again");
+        await _disconnectClean();
+
+        setState(() {
+          testState = TestState.idle;
+          deviceResult[selectedDeviceId] = null;
+        });
+      }
+
+
+      // ✅ Patient saved response
+      // if (rawResult.toLowerCase().contains("patient save")) {
+      //
+      //   if (!mounted) return;
+      //
+      //   bool? confirmSteps = await _showConfirmDialog(
+      //     "Instructions",
+      //     "Before test:\n\n"
+      //         "• Take cuvette\n"
+      //         "• Add 3ml urine\n"
+      //         "• Add 5 drops reagent\n"
+      //         "• Mix 3 times\n"
+      //         "• Close cap & clean\n\n"
+      //         "Have you followed all steps?",
+      //   );
+      //
+      //   if (confirmSteps == true) {
+      //     setState(() {
+      //       deviceResult[selectedDeviceId] = "Starting test...";
+      //       deviceStage[selectedDeviceId] = 1; // still loading
+      //       testState = TestState.waitingTestStart;
+      //     });
+      //
+      //     await _connectSendAndRead(_device!.remoteId.str, selectedDeviceId, "#startProtineTest");
+      //   } else {
+      //     testState = TestState.idle;
+      //   }
+      //
+      //   return;
+      // }
 
       if (rawResult.toLowerCase().contains("test start")) {
 
@@ -1118,19 +1413,6 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
     _rxChar = null;
     _txChar = null;
   }
-
-  // Future<int> _decreaseTestCount() async {
-  //   final ref = dbRef.child(
-  //       "Devices/${widget.user.mobile}/$selectedDeviceId/testCount");
-  //
-  //   await ref.runTransaction((current) {
-  //     if (current == null) return Transaction.success(0);
-  //     final val = (current as num).toInt();
-  //     return Transaction.success(val > 0 ? val - 1 : 0);
-  //   });
-  //
-  // }
-
   Future<int> _decreaseTestCount() async {
     final ref = dbRef.child(
         "Devices/${widget.user.mobile}/$selectedDeviceId/testCount");
@@ -1266,41 +1548,50 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
   }
 
   void _showDeviceScanPopup() {
-    List<ScanResult> found = [];
-
     showDialog(
       context: context,
       builder: (ctx) {
+        // start scan once
+        FlutterBluePlus.startScan(timeout: const Duration(seconds: 8));
+
         return AlertDialog(
           title: const Text("Search SCINTIGLO Devices"),
           content: SizedBox(
-            height: 500,
-            child: FutureBuilder(
-              future: FlutterBluePlus.startScan(
-                  timeout: const Duration(seconds: 8)),
-              builder: (_, __) {
-                FlutterBluePlus.scanResults.listen((results) {
-                  for (var r in results) {
-                    final name = r.device.name;
-                    if (name.startsWith("SCINPY") &&
-                        !found.any((d) =>
-                        d.device.remoteId == r.device.remoteId)) {
-                      found.add(r);
-                    }
-                  }
-                });
+            height: 400,
+            width: double.maxFinite,
+            child: StreamBuilder<List<ScanResult>>(
+              stream: FlutterBluePlus.scanResults,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                // filter devices
+                final devices = snapshot.data!
+                    .where((r) => r.device.name.startsWith("SCINPY"))
+                    .toList();
+
+                if (devices.isEmpty) {
+                  return const Center(child: Text("No devices found"));
+                }
 
                 return ListView.builder(
-                  itemCount: found.length,
+                  itemCount: devices.length,
                   itemBuilder: (_, i) {
-                    final r = found[i];
+                    final r = devices[i];
+
                     return ListTile(
                       title: Text(r.device.name),
                       subtitle: Text(r.device.remoteId.str),
                       onTap: () async {
                         Navigator.pop(ctx);
+
+                        await FlutterBluePlus.stopScan(); // 👈 important
+
                         await _saveDeviceToFirebase(
-                            r.device.name, r.device.remoteId.str);
+                          r.device.name,
+                          r.device.remoteId.str,
+                        );
                       },
                     );
                   },
@@ -1312,6 +1603,53 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
       },
     );
   }
+  // void _showDeviceScanPopup() {
+  //   List<ScanResult> found = [];
+  //
+  //   showDialog(
+  //     context: context,
+  //     builder: (ctx) {
+  //       return AlertDialog(
+  //         title: const Text("Search SCINTIGLO Devices"),
+  //         content: SizedBox(
+  //           height: 500,
+  //           child: FutureBuilder(
+  //             future: FlutterBluePlus.startScan(
+  //                 timeout: const Duration(seconds: 8)),
+  //             builder: (_, __) {
+  //               FlutterBluePlus.scanResults.listen((results) {
+  //                 for (var r in results) {
+  //                   final name = r.device.name;
+  //                   if (name.startsWith("SCINPY") &&
+  //                       !found.any((d) =>
+  //                       d.device.remoteId == r.device.remoteId)) {
+  //                     found.add(r);
+  //                   }
+  //                 }
+  //               });
+  //
+  //               return ListView.builder(
+  //                 itemCount: found.length,
+  //                 itemBuilder: (_, i) {
+  //                   final r = found[i];
+  //                   return ListTile(
+  //                     title: Text(r.device.name),
+  //                     subtitle: Text(r.device.remoteId.str),
+  //                     onTap: () async {
+  //                       Navigator.pop(ctx);
+  //                       await _saveDeviceToFirebase(
+  //                           r.device.name, r.device.remoteId.str);
+  //                     },
+  //                   );
+  //                 },
+  //               );
+  //             },
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
 
   void _addOrUpdateDevice(String deviceName, int newCount) {
     final index = updatedNewTest.indexWhere((d) => d["deviceId"] == deviceName);
@@ -1379,6 +1717,9 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
     _deviceListener?.cancel();
     _scanSub?.cancel();
     FlutterBluePlus.stopScan();
+    WidgetsBinding.instance.removeObserver(this);
+    tts.stop(); //voice
+
     super.dispose();
   }
 
@@ -1577,18 +1918,63 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
   Future<bool?> _showConfirmDialog(String title, String message) {
     return showDialog<bool>(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text("No"),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 16),
+
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+
+          // 🔴 TITLE (center + proper fit)
+          title: Text(
+            title,
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 20,
             ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text("Yes"),
+          ),
+
+          // 📄 CONTENT
+          content: SingleChildScrollView(
+            child: Text(
+              message.trim(),
+              textAlign: TextAlign.left,
+              style: const TextStyle(
+                fontSize: 14,
+                height: 1.5, // ✅ better spacing
+              ),
+            ),
+          ),
+
+          // 🔘 BUTTONS (left-right)
+          actionsPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+
+          actions: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text("Cancel"),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 18, vertical: 10),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text("Start Test"),
+                ),
+              ],
             ),
           ],
         );
@@ -1607,4 +1993,417 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2> {
     // Otherwise, assume it's a range or numeric condition → add unit
     return "$value mg/dL";
   }
+
+  Future<void> speak(String text) async {
+    if (isMuted) return; // 🔥 mute control
+    await tts.stop(); // 🔥 previous voice stop
+    await tts.setLanguage(selectedLang); // 🔥 dynamic language
+    await tts.speak(text);
+  }
+
+
+  IconData getBatteryIcon(double voltage) {
+    if (voltage >= 4.0) return Icons.battery_full;
+    if (voltage >= 3.7) return Icons.battery_6_bar;
+    if (voltage >= 3.5) return Icons.battery_4_bar;
+    if (voltage >= 3.3) return Icons.battery_2_bar;
+    return Icons.battery_alert;
+  }
+
+  Color getBatteryColor(double voltage) {
+    if (voltage >= 4.0) return Colors.green;       // full
+    if (voltage >= 3.7) return Colors.lightGreen;  // good
+    if (voltage >= 3.5) return Colors.orange;      // medium
+    if (voltage >= 3.3) return Colors.deepOrange;  // low
+    return Colors.red;                             // critical
+  }
+  Color getTestColor(int count) {
+    if (count <= 0) {
+      return Colors.red;        // ❌ No balance
+    } else if (count < 6) {
+      return Colors.orange;     // ⚠️ Low balance
+    } else {
+      return Colors.green;      // ✅ Good balance
+    }
+  }
+  double batteryToPercent(double voltage) {
+    double percent = ((voltage - 3.3) / (4.2 - 3.3)) * 100;
+    return percent.clamp(0, 100);
+  }
+  void _showResultPopup(String result, int remaining) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text(
+          "Protein Test Result",
+          textAlign: TextAlign.center,
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle,
+                color: Colors.green, size: 50),
+            const SizedBox(height: 12),
+
+            RichText(
+              textAlign: TextAlign.center,
+              text: TextSpan(
+                style: const TextStyle(
+                  fontSize: 16,
+                  color: Colors.black,
+                ),
+                children: [
+                  const TextSpan(text: "Result :- "),
+                  TextSpan(
+                    text: result,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+
+                  const TextSpan(text: "\n\n"),
+                  TextSpan(
+                    text: "Remaining Test :- "+remaining.toString(),
+                    style: TextStyle(
+                      color: getTestColor(remaining),
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Future<void> _warmupBluetooth() async {
+    try {
+      await FlutterBluePlus.adapterState.first;
+      await Future.delayed(const Duration(milliseconds: 500));
+    } catch (_) {}
+  }
+  Future<bool> _checkBluetoothAndLocation() async {
+    try {
+      // 🔵 Check Bluetooth state
+      final btState = await FlutterBluePlus.adapterState.first;
+
+      if (btState != BluetoothAdapterState.on) {
+        _showPopup("Bluetooth Off", "Please turn ON Bluetooth");
+        return false;
+      }
+      // 📍 Check Location permission
+      final locationPermission = await Permission.location.status;
+
+      if (!locationPermission.isGranted) {
+        final result = await Permission.location.request();
+
+        if (!result.isGranted) {
+          _showPopup("Permission Required", "Location permission is required for BLE");
+          return false;
+        }
+      }
+      // 📍 Check Location service (GPS)
+      bool serviceEnabled = await Permission.location.serviceStatus.isEnabled;
+
+      if (!serviceEnabled) {
+        _showPopup("Location Off", "Please turn ON Location (GPS)");
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      print("Check error: $e");
+      return false;
+    }
+  }
+
+  // Future<void> _initSetup() async {
+  //   await Future.delayed(const Duration(milliseconds: 300));
+  //   // UI load hone do
+  //
+  //   bool ready = await _checkAllRequirements();
+  //
+  //   if (!ready) return;
+  //
+  //   // ✅ YAHAN se tumhara main process start hoga
+  //   print("All OK → Start BLE flow");
+  // }
+  //
+  // Future<bool> _checkAllRequirements() async {
+  //   try {
+  //     // 🔵 Bluetooth state
+  //     final btState = await FlutterBluePlus.adapterState.first;
+  //
+  //     if (btState != BluetoothAdapterState.on) {
+  //       _showPopup("Bluetooth Off", "Please turn ON Bluetooth");
+  //       return false;
+  //     }
+  //
+  //     // 📱 Permissions
+  //     Map<Permission, PermissionStatus> statuses = await [
+  //       Permission.bluetoothScan,
+  //       Permission.bluetoothConnect,
+  //       Permission.locationWhenInUse,
+  //     ].request();
+  //
+  //     if (statuses.values.any((s) => !s.isGranted)) {
+  //       _showPopup("Permission Required", "Please allow all permissions");
+  //       return false;
+  //     }
+  //
+  //     // 📍 ONLY ANDROID → Location ON check
+  //     if (Platform.isAndroid) {
+  //       bool serviceEnabled =
+  //       await Permission.location.serviceStatus.isEnabled;
+  //
+  //       if (!serviceEnabled) {
+  //         _showPopup("Location Off", "Please turn ON Location");
+  //         return false;
+  //       }
+  //     }
+  //
+  //     return true;
+  //   } catch (e) {
+  //     print("Error: $e");
+  //     return false;
+  //   }
+  // }
+
+  Future<void> _initSetup() async {
+    while (true) {
+      bool bt = await _ensureBluetoothOn();
+      if (!bt) {
+        Navigator.pop(context); // 👈 back
+        return;
+      }
+
+      bool loc = await _ensureLocationOn();
+      if (!loc) if (!loc) {
+        Navigator.pop(context);
+        return;
+      }
+
+      bool permission = await _checkPermissions();
+      if (!permission)  {
+        Navigator.pop(context);
+        return;
+      }
+      // ✅ All OK
+      print("Start process");
+      break;
+    }
+  }
+
+  Future<bool> _ensureBluetoothOn() async {
+    var state = await FlutterBluePlus.adapterState.first;
+
+    if (state == BluetoothAdapterState.on) return true;
+
+    bool userWants = await _askUser(
+      "Bluetooth Required",
+      "Please turn ON Bluetooth to continue",
+    );
+
+    if (!userWants) return false;
+
+    if (Platform.isAndroid) {
+      await FlutterBluePlus.turnOn();
+
+      // wait until ON
+      await FlutterBluePlus.adapterState
+          .firstWhere((s) => s == BluetoothAdapterState.on);
+
+      return true;
+    } else {
+      // iOS case 🚫
+      await AppSettings.openAppSettings();
+
+      // wait until user comes back and turns ON
+      await FlutterBluePlus.adapterState
+          .firstWhere((s) => s == BluetoothAdapterState.on);
+
+      return true;
+    }
+  }
+
+  Future<bool> _ensureLocationOn() async {
+    if (!Platform.isAndroid) return true;
+
+    bool enabled = await Permission.location.serviceStatus.isEnabled;
+    if (enabled) return true;
+
+    bool userWants = await _askUser(
+      "Location Required",
+      "Please turn ON Location (GPS)",
+    );
+
+    if (!userWants) return false;
+
+    const intent = AndroidIntent(
+      action: 'android.settings.LOCATION_SOURCE_SETTINGS',
+    );
+    await intent.launch();
+
+    // 👇 wait thoda aur phir re-check
+    await Future.delayed(const Duration(seconds: 2));
+
+    return await Permission.location.serviceStatus.isEnabled;
+  }
+
+  Future<bool> _askUser(String title, String msg) async {
+    bool? result = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(title),
+        content: Text(msg),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Turn ON"),
+          ),
+        ],
+      ),
+    );
+
+    return result ?? false;
+  }
+
+  Future<bool> _checkPermissions() async {
+    final statuses = await [
+      Permission.bluetoothScan,
+      Permission.bluetoothConnect,
+      Permission.locationWhenInUse,
+    ].request();
+
+    return statuses.values.every((s) => s.isGranted);
+  }
+
+  Future<void> _onAppResume() async {
+    bool locEnabled = await Permission.location.serviceStatus.isEnabled;
+
+    if (locEnabled) {
+      Navigator.pop(context); // 👈 popup band
+    }
+  }
+
+  Widget _buildBatteryWidget(String key) {
+    final battery = deviceBattery[key];
+
+    if (battery == null) {
+      return const SizedBox(); // hide if no data
+    }
+
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(
+          getBatteryIcon(battery),
+          color: getBatteryColor(battery),
+          size: 24,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          // "${battery.toStringAsFixed(2)}V",
+          "${batteryToPercent(battery).toStringAsFixed(0)}%",
+          style: TextStyle(
+            fontSize: 12,
+            color: getBatteryColor(battery),
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<bool?> _showConfirmDialogLOW(String title, int testCount) {
+    return showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(title),
+          content: RichText(
+            text: TextSpan(
+              style: TextStyle(color: Colors.black, fontSize: 14),
+              children: [
+                const TextSpan(text: "Your test balance is low ("),
+                TextSpan(
+                  text: "$testCount",
+                  style: TextStyle(
+                    color: getTestColor(testCount), // 🔥 dynamic color
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const TextSpan(text: " left). Do you want to continue?"),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              // onPressed: () => Navigator.pop(context, false),
+              onPressed: () async {
+                await tts.stop(); // 👈 STOP TTS
+                Navigator.pop(context, false);
+              },
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              // onPressed: () => Navigator.pop(context, true),
+              onPressed: () async {
+                await tts.stop(); // 👈 STOP TTS
+                Navigator.pop(context, true);
+              },
+              child: const Text("Continue"),
+
+            ),
+          ],
+        );
+      },
+    );
+  }
+  // Widget _buildBatteryWidget(String key) {
+  //   final battery = deviceBattery[key];
+  //   final stage = deviceStage[key] ?? 0;
+  //
+  //   // ❌ Hide when test is complete
+  //   if (battery == null || stage == 0) {
+  //     return const SizedBox();
+  //   }
+  //
+  //   return Column(
+  //     mainAxisAlignment: MainAxisAlignment.center,
+  //     children: [
+  //       Icon(
+  //         getBatteryIcon(battery),
+  //         color: getBatteryColor(battery),
+  //         size: 24,
+  //       ),
+  //       const SizedBox(height: 4),
+  //       Text(
+  //         "${batteryToPercent(battery).toStringAsFixed(0)}%",
+  //         style: TextStyle(
+  //           fontSize: 12,
+  //           color: getBatteryColor(battery),
+  //           fontWeight: FontWeight.bold,
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
 }
