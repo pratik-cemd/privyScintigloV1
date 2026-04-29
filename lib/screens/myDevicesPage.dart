@@ -2352,8 +2352,10 @@ class _MyDevicesPageState2 extends State<MyDevicesPage2>
   Future<void> _onAppResume() async {
     bool locEnabled = await Permission.location.serviceStatus.isEnabled;
 
-    if (locEnabled) {
-      Navigator.pop(context); // 👈 popup band
+    if (locEnabled && Platform.isAndroid) {
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
     }
   }
 
